@@ -1,0 +1,99 @@
+version: "3.9"
+services:
+  mongodb-new:
+    container_name: mongodb-new
+    image: mongo:6.0
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=adminpassword
+      - MONGO_INITDB_DATABASE=wegnots
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./monitor/data/fix-mongo.js:/docker-entrypoint-initdb.d/fix-mongo.js:ro
+    networks:
+      - wegnots-network
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')" --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: ["--bind_ip_all", "--wiredTigerCacheSizeGB", "0.5"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  monitor:
+    build:
+      context: ./monitor
+    container_name: monitor
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://admin:adminpassword@mongodb-new:27017/wegnots?authSource=admin
+      - FLASK_ENV=production
+      - FLASK_APP=app:create_app()
+      - GUNICORN_WORKERS=2
+      - GUNICORN_TIMEOUT=120
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - HEALTH_CHECK_HOST=0.0.0.0
+    volumes:
+      - ./monitor:/app
+      - ./monitor/logs:/app/logs
+      - ./monitor/uploads:/app/uploads
+      - ./monitor/config.ini:/app/config.ini:ro
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongodb-new:
+        condition: service_started
+    networks:
+      - wegnots-network
+    command: python api_server.py
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+    depends_on:
+      - monitor
+    networks:
+      - wegnots-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+networks:
+  wegnots-network:
+    driver: bridge
+    name: wegnots-network
+
+volumes:
+  mongodb_data:
+    name: wegnots-mongodb-data
+  mongodb_config:
+    name: wegnots-mongodb-config

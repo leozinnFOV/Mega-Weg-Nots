@@ -1,0 +1,46 @@
+# Arquivos de Configuração e Credenciais
+.env
+*.env
+config.ini
+*.ini
+*.conf
+*.config
+*.cfg
+
+# Arquivos de Log e Dados Sensíveis
+*.log
+logs/
+data/
+uploads/
+temp_backup/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtualenv
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de distribuição
+dist/
+build/
+*.egg-info/
+
+# Arquivos de teste e cobertura
+.coverage
+htmlcov/
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.swp
